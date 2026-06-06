@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vite
+npm-debug.log*
+playwright-report
+test-results
+.playwright-browsers
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/*.synctex.gz
+claude_files

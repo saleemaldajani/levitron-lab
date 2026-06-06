@@ -16,8 +16,10 @@ const PAGE_IDS: PageId[] = [
 ];
 
 function pageFromHash(): PageId {
-  const h = window.location.hash.replace('#', '') as PageId;
-  return PAGE_IDS.includes(h) ? h : 'earnshaw';
+  const h = window.location.hash.replace('#', '');
+  if (h.startsWith('ref-')) return 'references';
+  const page = h.split('/')[0] as PageId;
+  return PAGE_IDS.includes(page) ? page : 'earnshaw';
 }
 
 const PAGES: Record<PageId, ReactNode> = {

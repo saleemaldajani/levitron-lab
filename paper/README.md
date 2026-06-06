@@ -7,6 +7,8 @@ Two LaTeX versions live here:
 | `levitron_lab_prl.tex` | PRL two-column (RevTeX `prl`) | arXiv / quick circulation draft |
 | `levitron_lab_ajp.tex` | AJP full article (`aapm,ajp`) | **Journal submission version** (American Journal of Physics) |
 
+The AJP manuscript includes appendices on GitHub Codespaces and Railway deployment.
+
 ## Figures
 
 Figures are captured from the running webapp into `figures/` using Playwright (headless Chromium):
@@ -20,9 +22,9 @@ npm run figures
 
 Expected files:
 
-- `fig_earnshaw_saddle.png`
+- `fig_earnshaw_saddle.png`, `fig_earnshaw_force.png`
 - `fig_feedback1d_globe.png`, `fig_feedback1d_eigs.png`
-- `fig_feedback2d_topview.png`, `fig_feedback2d_eigs.png`
+- `fig_feedback2d_topview.png`, `fig_feedback2d_traces.png`, `fig_feedback2d_eigs.png`
 - `fig_gyro_stable.png`, `fig_gyro_potential.png`, `fig_gyro_theta_trace.png`
 - `fig_rotor_trap.png`, `fig_rotor_potential.png`
 
@@ -45,6 +47,10 @@ pdflatex levitron_lab_ajp.tex && pdflatex levitron_lab_ajp.tex
 
 Outputs: `levitron_lab_prl.pdf`, `levitron_lab_ajp.pdf`.
 
+## Cite this work
+
+Placeholder BibTeX (update when published): see [../CITATION.bib](../CITATION.bib).
+
 ## Repository
 
-https://github.com/saldajani/levitron-lab
+https://github.com/saleemaldajani/levitron-lab

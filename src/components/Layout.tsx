@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { PageId } from '../types';
 import { MODULE_NAV, EXTRA_NAV } from '../data/navigation';
+import { DEVELOPER_NAME, LAB_PAPER_LABEL, LAB_PAPER_URL } from '../data/site';
 import { Footer } from './Footer';
 
 interface LayoutProps {
@@ -18,6 +19,13 @@ export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
             <span className="title-main">The Levitron Lab</span>
             <span className="title-sub">Interactive magnetic levitation exhibits</span>
           </button>
+          <p className="site-credit">
+            Developed by {DEVELOPER_NAME}
+            <br />
+            <a href={LAB_PAPER_URL} title="Paper link — placeholder until publication">
+              {LAB_PAPER_LABEL}
+            </a>
+          </p>
         </div>
       </header>
 

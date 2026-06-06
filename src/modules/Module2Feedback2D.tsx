@@ -6,51 +6,82 @@ import { ModuleHeader, PhysicsPanel } from '../components/PhysicsPanel';
 import { SimControls } from '../components/SimControls';
 import { SliderControl } from '../components/SliderControl';
 import { StabilityBadge } from '../components/StabilityBadge';
-import { drawPhasePortrait, useSimLoop } from '../hooks/useSimLoop';
+import { drawMultiLinePlot, useSimLoop } from '../hooks/useSimLoop';
 import { openLoopEigenvalues2D } from '../physics/eigenvalues';
 import {
-  DEFAULT_FEEDBACK2D,
   type Feedback2DParams,
   type Feedback2DState,
   classifyFeedback2D,
+  coilCommands,
   computeEigenvalues2D,
   eigenvalueSummary,
   feedback2DPreset,
   initFeedback2DState,
+  nudgeFeedback2D,
   stepFeedback2D,
 } from '../physics/feedback2D';
-import { PHYSICS_DT } from '../physics/integrators';
+import { PHYSICS_DT, clamp } from '../physics/integrators';
+import { checkModule2 } from '../physics/startupCheck';
 import type { StabilityStatus } from '../types';
 
 export function Module2Feedback2D() {
-  const [params, setParams] = useState<Feedback2DParams>({ ...DEFAULT_FEEDBACK2D });
-  const [state, setState] = useState<Feedback2DState>(() => initFeedback2DState(DEFAULT_FEEDBACK2D));
+  const [params, setParams] = useState<Feedback2DParams>(() => feedback2DPreset());
+  const [state, setState] = useState<Feedback2DState>(() => initFeedback2DState(feedback2DPreset()));
   const [status, setStatus] = useState<StabilityStatus>('LEVITATING');
   const [running, setRunning] = useState(true);
+  const stateRef = useRef(state);
+  const paramsRef = useRef(params);
+  const noiseRef = useRef({ x: 0, y: 0 });
+  paramsRef.current = params;
+  stateRef.current = state;
+
   const heroRef = useRef<HTMLCanvasElement>(null);
-  const phase1Ref = useRef<HTMLCanvasElement>(null);
-  const phase2Ref = useRef<HTMLCanvasElement>(null);
+  const posCanvasRef = useRef<HTMLCanvasElement>(null);
+  const coilCanvasRef = useRef<HTMLCanvasElement>(null);
+  const historyRef = useRef<
+    { t: number; x: number; y: number; ix: number; iy: number; err: number }[]
+  >([]);
   const ev = eigenvalueSummary();
 
   const eigsClosed = useMemo(() => computeEigenvalues2D(params, false), [params]);
   const eigsOpen = useMemo(() => openLoopEigenvalues2D(params.temperature), [params.temperature]);
 
+  useEffect(() => {
+    checkModule2();
+  }, []);
+
   useSimLoop({
     running: running && !state.crashed,
     dt: PHYSICS_DT,
-    onStep: useCallback(
-      (dt) => {
-        const nx = Math.random() * 2 - 1;
-        const ny = Math.random() * 2 - 1;
-        setState((s) => {
-          const next = stepFeedback2D(s, params, dt, nx, ny);
-          setStatus(classifyFeedback2D(next, params));
-          if (next.crashed) setRunning(false);
-          return next;
-        });
-      },
-      [params],
-    ),
+    onStep: useCallback((dt) => {
+      stateRef.current = stepFeedback2D(
+        stateRef.current,
+        paramsRef.current,
+        dt,
+        noiseRef.current.x,
+        noiseRef.current.y,
+      );
+    }, []),
+    onFrame: useCallback(() => {
+      noiseRef.current = { x: Math.random() * 2 - 1, y: Math.random() * 2 - 1 };
+      const next = stateRef.current;
+      const p = paramsRef.current;
+      const [ix, iy] = coilCommands(next.coilCurrents);
+      const err = Math.hypot(next.x - p.payloadOffsetX, next.y - p.payloadOffsetY);
+      const hist = historyRef.current;
+      hist.push({
+        t: next.time,
+        x: next.x * 100,
+        y: next.y * 100,
+        ix,
+        iy,
+        err: err * 100,
+      });
+      if (hist.length > 800) hist.shift();
+      setState(next);
+      setStatus(classifyFeedback2D(next, p));
+      if (next.crashed) setRunning(false);
+    }, []),
   });
 
   useEffect(() => {
@@ -91,8 +122,8 @@ export function Module2Feedback2D() {
       ctx.fillText(c.label, c.x - 4, c.y + 4);
     });
 
-    const px = cx + state.x * scale * 10;
-    const py = cy + state.y * scale * 10;
+    const px = cx + clamp(state.x, -0.04, 0.04) * scale * 10;
+    const py = cy + clamp(state.y, -0.04, 0.04) * scale * 10;
     const glow =
       status === 'LEVITATING' ? '#4fc3f7' : status === 'CRASHED' ? '#ff5252' : '#ffb74d';
     drawGlowOrb(ctx, px, py, 16, { glow, alpha: state.crashed ? 0.35 : 1 });
@@ -109,27 +140,69 @@ export function Module2Feedback2D() {
   }, [state, params, status]);
 
   useEffect(() => {
-    [phase1Ref, phase2Ref].forEach((ref, i) => {
-      const canvas = ref.current;
-      if (!canvas) return;
-      const ctx = setupCanvas(canvas);
-      if (!ctx) return;
-      drawPhasePortrait(ctx, canvas.clientWidth, canvas.clientHeight, i === 0 ? 'z' : 'xy');
-    });
-  }, []);
+    const hist = historyRef.current;
+    const setX = params.payloadOffsetX * 100;
+    const setY = params.payloadOffsetY * 100;
+
+    const posCanvas = posCanvasRef.current;
+    if (posCanvas) {
+      const ctx = setupCanvas(posCanvas);
+      if (ctx) {
+        drawMultiLinePlot(ctx, posCanvas.clientWidth, posCanvas.clientHeight, [
+          { data: hist.map((p) => ({ x: p.t, y: p.x })), color: '#4fc3f7', label: 'x' },
+          { data: hist.map((p) => ({ x: p.t, y: p.y })), color: '#ffb74d', label: 'y' },
+        ], {
+          xLabel: 't (s)',
+          yLabel: 'position (cm)',
+          refLines: [
+            { y: setX, color: 'rgba(79, 195, 247, 0.55)', dash: [5, 4] },
+            { y: setY, color: 'rgba(255, 183, 77, 0.55)', dash: [5, 4] },
+          ],
+        });
+      }
+    }
+
+    const coilCanvas = coilCanvasRef.current;
+    if (coilCanvas) {
+      const ctx = setupCanvas(coilCanvas);
+      if (ctx) {
+        drawMultiLinePlot(ctx, coilCanvas.clientWidth, coilCanvas.clientHeight, [
+          { data: hist.map((p) => ({ x: p.t, y: p.ix })), color: '#ce93d8', label: 'i_x' },
+          { data: hist.map((p) => ({ x: p.t, y: p.iy })), color: '#80cbc4', label: 'i_y' },
+        ], {
+          xLabel: 't (s)',
+          yLabel: 'coil cmd',
+          yZero: true,
+        });
+      }
+    }
+  }, [state, params.payloadOffsetX, params.payloadOffsetY]);
 
   const reset = () => {
+    historyRef.current = [];
     setRunning(true);
-    setState(initFeedback2DState(params));
+    const s = initFeedback2DState(params);
+    stateRef.current = s;
+    setState(s);
     setStatus('LEVITATING');
   };
 
   const preset = () => {
     const p = feedback2DPreset();
     setParams(p);
+    paramsRef.current = p;
+    historyRef.current = [];
     setRunning(true);
-    setState(initFeedback2DState(p));
+    const s = initFeedback2DState(p);
+    stateRef.current = s;
+    setState(s);
     setStatus('LEVITATING');
+  };
+
+  const nudge = () => {
+    const nudged = nudgeFeedback2D(stateRef.current);
+    stateRef.current = nudged;
+    setState(nudged);
   };
 
   return (
@@ -141,9 +214,9 @@ export function Module2Feedback2D() {
         status={<StabilityBadge status={status} />}
       />
 
-      <div className="module-grid">
+      <div className="module-grid module-grid--2d">
         <div className="sim-panel">
-          <SimControls onReset={reset} onPreset={preset} />
+          <SimControls onReset={reset} onPreset={preset} onNudge={nudge} nudgeLabel="Nudge payload" />
           <canvas ref={heroRef} className="hero-canvas square-hero" aria-label="Top-down four-coil levitator" />
 
           <div className="slider-grid">
@@ -158,9 +231,25 @@ export function Module2Feedback2D() {
             <SliderControl label="Loop delay" value={params.loopDelay * 1000} min={1} max={25} step={0.5} unit="ms" onChange={(v) => setParams((p) => ({ ...p, loopDelay: v / 1000 }))} />
           </div>
 
-          <div className="secondary-panels">
-            <canvas ref={phase1Ref} className="sim-canvas small" />
-            <canvas ref={phase2Ref} className="sim-canvas small" />
+          <div className="secondary-panels live-plots">
+            <div>
+              <canvas ref={posCanvasRef} className="sim-canvas small" aria-label="Horizontal position vs time" />
+              <p className="panel-caption">x, y position — dashed lines = setpoint (offset sliders)</p>
+            </div>
+            <div>
+              <canvas ref={coilCanvasRef} className="sim-canvas small" aria-label="Coil PID commands vs time" />
+              <p className="panel-caption">Coil commands i_x, i_y — watch Kp/Ki/Kd and delay change the trace</p>
+            </div>
+          </div>
+
+          <div className="readouts">
+            <span>
+              x = {(state.x * 100).toFixed(2)} cm, y = {(state.y * 100).toFixed(2)} cm
+              (err = {(Math.hypot(state.x - params.payloadOffsetX, state.y - params.payloadOffsetY) * 100).toFixed(2)} cm)
+            </span>
+            <span>
+              i_x = {coilCommands(state.coilCurrents)[0].toFixed(3)}, i_y = {coilCommands(state.coilCurrents)[1].toFixed(3)}
+            </span>
           </div>
 
           <EigenvaluePanel
@@ -173,7 +262,7 @@ export function Module2Feedback2D() {
         </div>
 
         <PhysicsPanel
-          experiment="Detune coil imbalance until an eigenvalue crosses Re=0. Compare with Module 1 where λ_z is the culprit."
+          experiment="Lower Kp or crank coil imbalance until an eigenvalue crosses Re=0 — then nudge the payload and watch it fly off. Long loop delay adds phase lag."
           citations={<p><CiteLink id={9} /></p>}
         >
           <p>Stable in z; <em>unstable in x and y</em> open-loop — four horizontal coils provide PID feedback.</p>

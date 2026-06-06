@@ -55,22 +55,39 @@ function eigenvalues3x3(m: number[][]): ComplexEigenvalue[] {
   const c1 = a * e + a * i + e * i - b * d - c * g - f * h;
   const c0 = -(a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g));
 
-  return solveCubic(-c2, -c1, -c0);
+  return solveCubic(c2, c1, c0);
 }
 
 function solveCubic(p: number, q: number, r: number): ComplexEigenvalue[] {
-  // λ³ + p λ² + q λ + r = 0  →  depressed cubic via λ = x - p/3
+  const shift = p / 3;
   const a = (3 * q - p * p) / 3;
   const b = (2 * p * p * p - 9 * p * q + 27 * r) / 27;
-  const shift = p / 3;
-
   const disc = (b * b) / 4 + (a * a * a) / 27;
+
   if (disc > 1e-12) {
     const sqrtD = Math.sqrt(disc);
     const u = Math.cbrt(-b / 2 + sqrtD);
     const v = Math.cbrt(-b / 2 - sqrtD);
-    return [{ re: u + v - shift, im: 0 }];
+    const realRoot = u + v - shift;
+    const a2 = 1;
+    const a1 = p + realRoot;
+    const a0 = q + p * realRoot + realRoot * realRoot;
+    const qdisc = a1 * a1 - 4 * a2 * a0;
+    if (qdisc >= 0) {
+      const sq = Math.sqrt(qdisc);
+      return [
+        { re: realRoot, im: 0 },
+        { re: (-a1 + sq) / 2, im: 0 },
+        { re: (-a1 - sq) / 2, im: 0 },
+      ];
+    }
+    return [
+      { re: realRoot, im: 0 },
+      { re: -a1 / 2, im: Math.sqrt(-qdisc) / 2 },
+      { re: -a1 / 2, im: -Math.sqrt(-qdisc) / 2 },
+    ];
   }
+
   if (Math.abs(disc) <= 1e-12) {
     const u = Math.cbrt(-b / 2);
     return [
@@ -79,6 +96,7 @@ function solveCubic(p: number, q: number, r: number): ComplexEigenvalue[] {
       { re: -u - shift, im: 0 },
     ];
   }
+
   const rho = Math.sqrt((-a * a * a) / 27);
   const theta = Math.acos(clamp(-b / (2 * rho), -1, 1));
   const m = 2 * Math.cbrt(rho);
@@ -163,16 +181,19 @@ export interface Feedback2DEigenParams {
 }
 
 export function passiveUnstableGainXY(temp: number): number {
-  return 8 * (1 - 0.001 * (temp - 22));
+  return 8.5 * (1 - 0.001 * (temp - 22));
 }
 
-/** Per-axis closed-loop Jacobian (x and y symmetric when balanced). */
-export function jacobianFeedback2DAxis(p: Feedback2DEigenParams): number[][] {
-  const coilScale = 0.04 * (1 - 0.001 * (p.temperature - 22));
-  const kAct = coilScale * (1 - p.coilImbalance * 0.05);
+/** Per-axis closed-loop Jacobian; actScale matches coil cmd scaling in the sim. */
+export function jacobianFeedback2DAxis(
+  p: Feedback2DEigenParams,
+  actScale = 1,
+): number[][] {
+  const coilScaleVal = 0.058 * (1 - 0.001 * (p.temperature - 22));
+  const kAct = coilScaleVal * actScale;
   const m = p.mass;
   const kPass = passiveUnstableGainXY(p.temperature);
-  const delayFactor = 1 / (1 + p.loopDelay * 600);
+  const delayFactor = 1 / (1 + p.loopDelay * 500);
 
   const kpEff = p.kpXY * kAct * delayFactor;
   const kdEff = p.kdXY * kAct * delayFactor;
@@ -197,14 +218,17 @@ export function openLoopEigenvalues2D(temp: number): ComplexEigenvalue[] {
 }
 
 export function closedLoopEigenvalues2D(p: Feedback2DEigenParams): ComplexEigenvalue[] {
-  const axis = eigenvaluesOfMatrix(jacobianFeedback2DAxis(p));
+  const coilImbalanceFactor = 0.32;
+  const imbalance = 1 + p.coilImbalance * coilImbalanceFactor;
+  const xAxis = eigenvaluesOfMatrix(jacobianFeedback2DAxis(p, imbalance));
+  const yAxis = eigenvaluesOfMatrix(jacobianFeedback2DAxis(p, 1 / imbalance));
   return [
-    { ...axis[0], label: 'λ_x' },
-    { ...axis[1], label: 'λ_x' },
-    { ...axis[2], label: 'λ_x' },
-    { ...axis[0], label: 'λ_y' },
-    { ...axis[1], label: 'λ_y' },
-    { ...axis[2], label: 'λ_y' },
+    { ...xAxis[0], label: 'λ_x' },
+    { ...xAxis[1], label: 'λ_x' },
+    { ...xAxis[2], label: 'λ_x' },
+    { ...yAxis[0], label: 'λ_y' },
+    { ...yAxis[1], label: 'λ_y' },
+    { ...yAxis[2], label: 'λ_y' },
   ];
 }
 

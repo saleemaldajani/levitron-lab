@@ -57,22 +57,30 @@ export const DEFAULT_FEEDBACK2D: Feedback2DParams = {
   payloadOffsetX: 0,
   payloadOffsetY: 0,
   temperature: 22,
-  loopDelay: 0.003,
-  sensorNoise: 0.0003,
+  loopDelay: 0.002,
+  sensorNoise: 0.00015,
 };
 
-const INTEGRAL_MAX = 0.04;
+const INTEGRAL_MAX = 0.022;
+const COIL_SCALE = 0.058;
+const COIL_IMBALANCE_FACTOR = 0.32;
+
+/** Recover (ix, iy) PID coil commands from four-coil currents [N, E, S, W]. */
+export function coilCommands(coilCurrents: [number, number, number, number]): [number, number] {
+  const [n, e, s, w] = coilCurrents;
+  return [(n + e - s - w) * 0.25, (n - e - s + w) * 0.25];
+}
 
 function tempFactor(temp: number): number {
   return 1 - 0.001 * (temp - 22);
 }
 
 function coilScale(p: Feedback2DParams): number {
-  return 0.04 * tempFactor(p.temperature);
+  return COIL_SCALE * tempFactor(p.temperature);
 }
 
-function passiveForce(val: number, p: Feedback2DParams): number {
-  return passiveUnstableGainXY(p.temperature) * val;
+function passiveForce(pos: number, setpoint: number, p: Feedback2DParams): number {
+  return passiveUnstableGainXY(p.temperature) * (pos - setpoint);
 }
 
 function computeAxisPID(
@@ -82,7 +90,7 @@ function computeAxisPID(
   p: Feedback2DParams,
 ): { cmd: number; newIntegral: number } {
   const raw = p.kpXY * err + p.kiXY * integral - p.kdXY * vel;
-  const cmd = clamp(raw, -2, 2);
+  const cmd = clamp(raw, -1.6, 1.6);
   const saturated = Math.abs(raw - cmd) > 1e-9;
   let newIntegral = integral;
   if (!saturated) {
@@ -93,12 +101,12 @@ function computeAxisPID(
 
 function feedbackForce(
   pos: number,
-  _vel: number,
+  setpoint: number,
   cmd: number,
   p: Feedback2DParams,
 ): number {
   const scale = coilScale(p);
-  return scale * cmd + passiveForce(pos, p);
+  return scale * cmd + passiveForce(pos, setpoint, p);
 }
 
 export function stepFeedback2D(
@@ -148,12 +156,11 @@ export function stepFeedback2D(
     coilCurrents = [ix + iy, ix - iy, -ix - iy, -ix + iy];
   }
 
-  const accel = (px: number, py: number, pvx: number, pvy: number): [number, number] => {
-    const ix = (coilCurrents[0] - coilCurrents[2]) * 0.25;
-    const iy = (coilCurrents[1] - coilCurrents[3]) * 0.25;
-    const imbalance = 1 + p.coilImbalance * 0.08;
-    const fx = feedbackForce(px, pvx, ix * imbalance, p) / p.mass;
-    const fy = feedbackForce(py, pvy, iy / imbalance, p) / p.mass;
+  const accel = (px: number, py: number, _pvx: number, _pvy: number): [number, number] => {
+    const [ix, iy] = coilCommands(coilCurrents);
+    const imbalance = 1 + p.coilImbalance * COIL_IMBALANCE_FACTOR;
+    const fx = feedbackForce(px, p.payloadOffsetX, ix * imbalance, p) / p.mass;
+    const fy = feedbackForce(py, p.payloadOffsetY, iy / imbalance, p) / p.mass;
     return [fx, fy];
   };
 
@@ -200,12 +207,25 @@ export function classifyFeedback2D(
 export function feedback2DPreset(): Feedback2DParams {
   return {
     ...DEFAULT_FEEDBACK2D,
-    kpXY: 100,
-    kiXY: 45,
-    kdXY: 16,
+    kpXY: 198,
+    kiXY: 28,
+    kdXY: 17,
     coilImbalance: 0,
     loopDelay: 0.002,
     temperature: 22,
+    sensorNoise: 0.00015,
+  };
+}
+
+/** Small horizontal kick — needed to excite instability when detuning coils or delay. */
+export function nudgeFeedback2D(state: Feedback2DState): Feedback2DState {
+  if (state.crashed) return state;
+  return {
+    ...state,
+    x: state.x + 0.009,
+    y: state.y - 0.007,
+    vx: state.vx + 0.012,
+    vy: state.vy + 0.009,
   };
 }
 
@@ -224,6 +244,15 @@ export function initFeedback2DState(p: Feedback2DParams): Feedback2DState {
     time: 0,
     crashed: false,
   };
+}
+
+/** Net horizontal acceleration at current state (m/s²). */
+export function netAcceleration2D(state: Feedback2DState, p: Feedback2DParams): [number, number] {
+  const [ix, iy] = coilCommands(state.coilCurrents);
+  const imbalance = 1 + p.coilImbalance * COIL_IMBALANCE_FACTOR;
+  const fx = feedbackForce(state.x, p.payloadOffsetX, ix * imbalance, p) / p.mass;
+  const fy = feedbackForce(state.y, p.payloadOffsetY, iy / imbalance, p) / p.mass;
+  return [fx, fy];
 }
 
 export function getEigenParams2D(p: Feedback2DParams): Feedback2DEigenParams {

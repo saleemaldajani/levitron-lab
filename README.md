@@ -16,15 +16,51 @@ The classic gyroscopic Levitron (Module 3) is, as Wolfgang Ketterle put it, a ta
 
 ## Run it in GitHub Codespaces
 
-1. Open [github.com/saldajani/levitron-lab](https://github.com/saldajani/levitron-lab) → **Code** → **Codespaces** → **Create codespace on main**.
-2. Wait for `npm install` (`postCreateCommand`), then the dev server starts (`postAttachCommand`).
-3. Open the forwarded **port 5173** preview.
+The fastest way to try the lab without installing Node locally:
 
-Manual start:
+1. Open [github.com/saleemaldajani/levitron-lab](https://github.com/saleemaldajani/levitron-lab) → **Code** → **Codespaces** → **Create codespace on main**.
+2. Wait for `npm install` to finish (`.devcontainer` `postCreateCommand`).
+3. The dev server starts automatically (`postAttachCommand`: `npm run dev -- --host`).
+4. In the **Ports** tab, open the forwarded preview for port **5173**.
+
+Manual restart inside the codespace:
 
 ```bash
 npm run dev -- --host
 ```
+
+Production build and preview:
+
+```bash
+npm run build
+npm run preview -- --host
+```
+
+Regenerate manuscript figures (Playwright Chromium required):
+
+```bash
+npx playwright install chromium
+npm run figures
+```
+
+See [paper/README.md](paper/README.md) and Appendix A of `paper/levitron_lab_ajp.tex` for the same instructions.
+
+## Deploy on Railway
+
+The repo includes `railway.toml`, `nixpacks.toml`, and an `npm start` script for a public static deployment.
+
+1. Create a project at [railway.app](https://railway.app) and connect this GitHub repository.
+2. Railway runs `npm ci && npm run build`, then `npm start` (serves `dist/` on `$PORT`).
+3. Assign a public domain in the Railway dashboard.
+
+Local production test:
+
+```bash
+npm run build
+PORT=3000 npm start
+```
+
+See Appendix B of `paper/levitron_lab_ajp.tex` for deployment details.
 
 ## Run locally
 
@@ -42,6 +78,7 @@ Open http://localhost:5173. Build: `npm run build` · preview: `npm run preview`
 docs/            generation prompts (PROMPT + follow-ups)
 paper/           PRL-format draft + AJP submission version + figures
 src/             React app (modules + physics engines in src/physics/)
+railway.toml     Railway deploy config
 ```
 
 ## Figure capture
@@ -52,6 +89,23 @@ npm run figures                   # Playwright headless capture → paper/figure
 ```
 
 See [paper/README.md](paper/README.md) for building PDFs.
+
+## Cite
+
+Placeholder BibTeX (update when the paper is published):
+
+```bibtex
+@misc{aldajani2026levitronlab,
+  author       = {Al Dajani, Saleem A.},
+  title        = {The Levitron Lab: An Interactive Curriculum for Magnetic Levitation Physics},
+  year         = {2026},
+  howpublished = {Interactive web application and accompanying manuscript},
+  note         = {Paper forthcoming. See paper/ in this repository.},
+  url          = {https://github.com/saleemaldajani/levitron-lab}
+}
+```
+
+Full entry: [CITATION.bib](CITATION.bib).
 
 ## References
 
@@ -64,8 +118,8 @@ See [paper/README.md](paper/README.md) for building PDFs.
 7. M. D. Simon, L. O. Heflinger & S. L. Ridgway, Am. J. Phys. 65, 286 (1997). https://www.physics.ucla.edu/marty/levitron/spinstab.pdf
 8. Spin-stabilized magnetic levitation, Wikipedia. https://en.wikipedia.org/wiki/Spin-stabilized_magnetic_levitation
 9. W. Ketterle, personal communication (MIT, June 2026).
-10. S. Aldajani & Alowayed, MIT 8.223 project report (author's prior work). http://goo.gl/c5u3lk
-11. S. Aldajani, Levitron analysis video (author). https://www.youtube.com/watch?v=1LHwq_g06fE
+10. S. A. Al Dajani & Alowayed, MIT 8.223 project report (author's prior work). http://goo.gl/c5u3lk
+11. S. A. Al Dajani, Levitron analysis video (author). https://www.youtube.com/watch?v=1LHwq_g06fE
 
 ## License
 

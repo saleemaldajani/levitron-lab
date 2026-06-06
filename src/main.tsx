@@ -8,3 +8,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+console.info('[Levitron Lab] build loaded — Module 0 has Nudge; ref-based physics loop active');

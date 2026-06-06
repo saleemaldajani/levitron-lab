@@ -8,14 +8,14 @@
 
 \title{The Levitron Lab: An Interactive Curriculum for Magnetic Levitation Physics}
 
-\author{Saleem Aldajani}
+\author{Saleem A. Al Dajani}
 \email{saldajani@mit.edu}
 \affiliation{Massachusetts Institute of Technology, Cambridge, Massachusetts 02139, USA}
 
 \date{\today}
 
 \begin{abstract}
-We describe \emph{The Levitron Lab}, a browser-based collection of interactive simulations that teach how different magnetic levitation toys work by climbing a dimensionality ladder from Earnshaw's theorem to full rigid-body and driven-rotor dynamics. Each of five modules foregrounds a live, animated levitating object with sliders on every physical parameter, diagnostic plots, and inline equations. Feedback modules implement full PID control with live Jacobian eigenvalues; the gyroscopic module implements the symmetric-top nutation analysis from the author's MIT 8.223 project. The tool is open source, runs offline, and deploys in one click via GitHub Codespaces (\url{https://github.com/saldajani/levitron-lab}). Supplementary interactive materials are available at the repository and in the accompanying video.
+We describe \emph{The Levitron Lab}, a browser-based collection of interactive simulations that teach how magnetic levitation toys evade Earnshaw's theorem by climbing a dimensionality ladder from a static saddle-point primer to full rigid-body and driven-rotor dynamics. Each of five modules foregrounds a live, animated levitating body with sliders on every physical parameter, diagnostic plots, and inline equations. Feedback modules implement full PID control with live Jacobian eigenvalues and time-series traces of position and coil drive; the gyroscopic module implements the symmetric-top nutation analysis from the author's MIT 8.223 project. The application is open source, runs entirely client-side, and can be launched in one click via GitHub Codespaces or deployed as a public website on Railway. Supplementary interactive materials, figure-capture scripts, and this manuscript are available at \url{https://github.com/saleemaldajani/levitron-lab}.
 \end{abstract}
 
 \maketitle
@@ -25,16 +25,17 @@ We describe \emph{The Levitron Lab}, a browser-based collection of interactive s
 
 Earnshaw's theorem forbids stable equilibrium for a magnetic dipole in a static field: wherever forces balance, the potential is a saddle~\cite{simon}. Yet levitating globes, spinning tops, and motor-driven floaters are sold as toys. Each evades the theorem by a distinct mechanism: time-varying feedback fields; gyroscopic spin; or frequency-locked rotation in a driven field~\cite{berry,hermansen,doff}.
 
-The Levitron Lab presents all three escape routes in one curriculum, ordered by \emph{which directions are unstable}---a classification articulated in conversation with an experimental atomic physicist who keeps a classic Levitron on his desk as a tabletop model of a magnetic atom trap~\cite{ketterle}.
+The Levitron Lab presents all three escape routes in one curriculum, ordered by \emph{which directions are unstable}---a classification articulated in conversation with an experimental atomic physicist who keeps a classic Levitron on his desk as a tabletop model of a magnetic atom trap~\cite{ketterle}. The software is intended for upper-level mechanics and E\&M courses, outreach demonstrations, and self-guided exploration.
 
 \section{Earnshaw's theorem and the three escape routes}
 \label{sec:earnshaw}
 
-Module~0 places a free magnet above a fixed magnet. The user hunts for $F(z)=0$ and discovers $\partial^2 U/\partial z^2<0$: passive levitation is impossible (Fig.~\ref{fig:earnshaw}).
+Module~0 places a free magnet above a fixed magnet. The user adjusts separation, field strength, and mass while a live $F(z)$ plot marks restoring (green) and unstable (red) bands. The floater starts in the green well; a \emph{Nudge} command tips it onto the red hill approach, from which it slides off the saddle (Figs.~\ref{fig:earnshaw} and~\ref{fig:earnshawforce}). Parameter sliders drift the field gradually so students can explore the well before crossing the stability margin.
 
 \begin{figure}[htbp]
-\includegraphics[width=\linewidth]{figures/fig_earnshaw_saddle.png}
-\caption{\label{fig:earnshaw}Earnshaw primer: the free magnet cannot rest at the force balance --- an unstable hilltop, not a bowl.}
+\includegraphics[width=0.48\linewidth]{figures/fig_earnshaw_saddle.png}
+\includegraphics[width=0.48\linewidth]{figures/fig_earnshaw_force.png}
+\caption{\label{fig:earnshaw}\label{fig:earnshawforce}(Left) Earnshaw primer: two magnets on a vertical axis. (Right) $F(z)$ with green restoring well, red unstable hill, and live floater marker; yellow line marks the hilltop $z_{\mathrm{eq}}$.}
 \end{figure}
 
 The three escape routes previewed are: (1)~active feedback (Modules~1--2); (2)~gyroscopic spin (Module~3); (3)~driven rotation (Module~4).
@@ -42,7 +43,7 @@ The three escape routes previewed are: (1)~active feedback (Modules~1--2); (2)~g
 \section{The five modules and implementation}
 \label{sec:modules}
 
-The application is built in React, TypeScript, and \texttt{three.js}. Physics integrates on a fixed $1$\,ms timestep decoupled from rendering; feedback modules use semi-implicit Euler; rigid-body modules use RK4.
+The application is built in React, TypeScript, and \texttt{three.js}. Physics integrates on a fixed $1$\,ms timestep decoupled from rendering; feedback modules use semi-implicit Euler; rigid-body modules use RK4. A startup self-check logs pass/fail diagnostics for each module preset.
 
 \subsection{One- and two-dimensional feedback}
 
@@ -50,7 +51,14 @@ Module~1 models the floating-globe class: stable horizontally, unstable in $z$, 
 \begin{equation}
 I=\mathrm{clamp}\!\left(K_p e + K_i\!\int e\,dt + K_d \dot e,\,0,\,I_{\max}\right).
 \end{equation}
-Module~2 is the mathematically distinct sibling: stable in $z$, unstable in $x$ and $y$, corrected by four horizontal coils. Both modules compute the closed-loop Jacobian and display eigenvalues live (Fig.~\ref{fig:eigs}).
+Live plots show gap error and coil current versus time; detuning $K_p$, temperature, or loop delay drives an eigenvalue across $\mathrm{Re}\,\lambda=0$ and produces a visible crash.
+
+Module~2 is the mathematically distinct sibling: stable in $z$, unstable in $x$ and $y$, corrected by four horizontal coils with per-axis PID. Real-time traces display horizontal position and coil commands $i_x$, $i_y$ as students lower gain, add coil imbalance, or increase loop delay (Fig.~\ref{fig:feedback2d}). Both feedback modules compute the closed-loop Jacobian and display eigenvalues live (Fig.~\ref{fig:eigs}).
+
+\begin{figure}[htbp]
+\includegraphics[width=\linewidth]{figures/fig_feedback2d_traces.png}
+\caption{\label{fig:feedback2d}Module~2: live horizontal position and coil-command traces while PID parameters are adjusted.}
+\end{figure}
 
 \begin{figure}[htbp]
 \includegraphics[width=0.48\linewidth]{figures/fig_feedback1d_eigs.png}
@@ -110,10 +118,10 @@ The spin-rate window ($\omega_{\min}\!\approx\!19$~rps for ferrite) and nutation
 
 A neutral atom with spin angular momentum is a microscopic gyroscope; magnetic trapping uses the same adiabatic-invariant logic as the Levitron~\cite{ketterle,berry}. The tool includes a dedicated page drawing this correspondence explicitly.
 
-\section{Classroom use and availability}
+\section{Classroom use, availability, and supplementary material}
 \label{sec:avail}
 
-The Levitron Lab runs fully client-side with no backend. GitHub Codespaces provides one-click deployment: \texttt{npm install} and \texttt{npm run dev -- --host} start automatically. Figure capture for papers uses \texttt{npm run figures} (Playwright). See \url{https://github.com/saldajani/levitron-lab}.
+The Levitron Lab runs fully client-side with no backend. Instructors can run it locally (\texttt{npm install \&\& npm run dev}), in GitHub Codespaces (Appendix~\ref{app:codespaces}), or deploy a public instance on Railway (Appendix~\ref{app:railway}). Figure capture for this manuscript uses \texttt{npm run figures} (Playwright headless screenshots of each module). Source code, data, and build scripts: \url{https://github.com/saleemaldajani/levitron-lab}.
 
 \section{Conclusion}
 \label{sec:conclusion}
@@ -124,9 +132,55 @@ By rendering the levitating body alongside the equations that govern it, and by 
 The author thanks W.~Ketterle for the conversation that motivated this work.
 \end{acknowledgments}
 
+\appendix
+
+\section{Running in GitHub Codespaces}
+\label{app:codespaces}
+
+The repository includes a \texttt{.devcontainer/devcontainer.json} configuration for one-click cloud development.
+
+\begin{enumerate}
+\item Open \url{https://github.com/saleemaldajani/levitron-lab}.
+\item Select \textbf{Code} $\rightarrow$ \textbf{Codespaces} $\rightarrow$ \textbf{Create codespace on main}.
+\item Wait for \texttt{npm install} (\texttt{postCreateCommand}) to finish; the dev server starts automatically (\texttt{postAttachCommand}: \texttt{npm run dev -- --host}).
+\item In the \textbf{Ports} tab, open the forwarded preview for port \textbf{5173}.
+\end{enumerate}
+
+Manual restart inside the codespace:
+\begin{verbatim}
+npm run dev -- --host
+\end{verbatim}
+Production build and local preview:
+\begin{verbatim}
+npm run build
+npm run preview -- --host
+\end{verbatim}
+Regenerate paper figures (requires Playwright Chromium):
+\begin{verbatim}
+npx playwright install chromium
+npm run figures
+\end{verbatim}
+
+\section{Deploying on Railway}
+\label{app:railway}
+
+The repository ships with \texttt{railway.toml}, \texttt{nixpacks.toml}, and an \texttt{npm start} script that serves the Vite production build with \texttt{serve}.
+
+\begin{enumerate}
+\item Create a project at \url{https://railway.app} and connect the GitHub repository \texttt{saleemaldajani/levitron-lab}.
+\item Railway detects the Node build: \texttt{npm ci \&\& npm run build}, then \texttt{npm start}.
+\item Assign a public domain in the Railway dashboard; the health check probes \texttt{/}.
+\end{enumerate}
+
+Local test of the production server:
+\begin{verbatim}
+npm run build
+PORT=3000 npm start
+\end{verbatim}
+
 \begin{thebibliography}{99}
-\bibitem{aldajani823} S.~Aldajani and Alowayed, ``Understanding the Levitron Through the Analysis of a Symmetric Spinning Top in a Gravitational Field,'' MIT 8.223 Classical Mechanics III project report (author's prior work). \url{http://goo.gl/c5u3lk}
-\bibitem{video} S.~Aldajani, demonstration video of the symmetric-top Levitron analysis. \url{https://www.youtube.com/watch?v=1LHwq_g06fE}
+\bibitem{aldajani823} S.~A.~Al Dajani and Alowayed, ``Understanding the Levitron Through the Analysis of a Symmetric Spinning Top in a Gravitational Field,'' MIT 8.223 Classical Mechanics III project report (author's prior work). \url{http://goo.gl/c5u3lk}
+\bibitem{video} S.~A.~Al Dajani, demonstration video of the symmetric-top Levitron analysis. \url{https://www.youtube.com/watch?v=1LHwq_g06fE}
 \bibitem{simon} M.~D.~Simon, L.~O.~Heflinger, and S.~L.~Ridgway, Am.\ J.\ Phys.\ \textbf{65}, 286 (1997). \url{https://www.physics.ucla.edu/marty/levitron/spinstab.pdf}
 \bibitem{berry} M.~V.~Berry, Proc.\ R.\ Soc.\ Lond.\ A \textbf{452}, 1207 (1996).
 \bibitem{hermansen} J.~M.~Hermansen \textit{et al.}, Phys.\ Rev.\ Applied \textbf{20}, 044036 (2023).

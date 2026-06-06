@@ -16,7 +16,6 @@ import { StabilityBadge } from '../components/StabilityBadge';
 import { drawLinePlot, useSimLoop } from '../hooks/useSimLoop';
 import { openLoopEigenvalues1D } from '../physics/eigenvalues';
 import {
-  DEFAULT_FEEDBACK1D,
   type Feedback1DParams,
   type Feedback1DState,
   classifyFeedback1D,
@@ -27,11 +26,12 @@ import {
   stepFeedback1D,
 } from '../physics/feedback1D';
 import { PHYSICS_DT } from '../physics/integrators';
+import { checkModule1 } from '../physics/startupCheck';
 import type { StabilityStatus } from '../types';
 
 export function Module1Feedback1D() {
-  const [params, setParams] = useState<Feedback1DParams>({ ...DEFAULT_FEEDBACK1D });
-  const [state, setState] = useState<Feedback1DState>(() => initFeedback1DState(DEFAULT_FEEDBACK1D));
+  const [params, setParams] = useState<Feedback1DParams>(() => feedback1DPreset());
+  const [state, setState] = useState<Feedback1DState>(() => initFeedback1DState(feedback1DPreset()));
   const [status, setStatus] = useState<StabilityStatus>('LEVITATING');
   const [running, setRunning] = useState(true);
   const heroRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +43,10 @@ export function Module1Feedback1D() {
   const eigsClosed = useMemo(() => computeEigenvalues1D(params, false), [params]);
   const eigsOpen = useMemo(() => openLoopEigenvalues1D(params.temperature), [params.temperature]);
   const setpoint = effectiveSetpoint(params);
+
+  useEffect(() => {
+    checkModule1();
+  }, []);
 
   useSimLoop({
     running: running && !state.crashed,
@@ -79,7 +83,7 @@ export function Module1Feedback1D() {
     const zMin = 0.005;
     const zMax = 0.035;
     const setY = zToPixelY(setpoint, zMin, zMax, h, 35);
-    const objY = zToPixelY(Math.max(0.005, state.z), zMin, zMax, h, 35);
+    const objY = zToPixelY(Math.max(0.005, Math.min(0.045, state.z)), zMin, zMax, h, 35);
 
     drawReferencePlane(ctx, setY, w, 'rgba(255, 235, 59, 0.35)');
     drawCoil(ctx, cx, 28, 90, 20, state.coilCurrent);

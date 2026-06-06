@@ -21,16 +21,28 @@ if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
 }
 
 const CAPTURES = [
-  { hash: 'earnshaw', selector: '.hero-canvas', file: 'fig_earnshaw_saddle.png', wait: 2000 },
-  { hash: 'feedback1d', selector: '.hero-canvas', file: 'fig_feedback1d_globe.png', wait: 3000 },
-  { hash: 'feedback1d', selector: '.eigen-panel', file: 'fig_feedback1d_eigs.png', wait: 500 },
-  { hash: 'feedback2d', selector: '.hero-canvas', file: 'fig_feedback2d_topview.png', wait: 3000 },
-  { hash: 'feedback2d', selector: '.eigen-panel', file: 'fig_feedback2d_eigs.png', wait: 500 },
-  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_stable"]', file: 'fig_gyro_stable.png', wait: 6000 },
-  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_potential"]', file: 'fig_gyro_potential.png', wait: 1000 },
-  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_theta_trace"]', file: 'fig_gyro_theta_trace.png', wait: 500 },
-  { hash: 'dynamical', selector: '.hero-canvas', file: 'fig_rotor_trap.png', wait: 4000 },
-  { hash: 'dynamical', selector: '.sim-canvas.small', file: 'fig_rotor_potential.png', wait: 500 },
+  { hash: 'earnshaw', selector: '.hero-canvas', file: 'fig_earnshaw_saddle.png', wait: 2500 },
+  {
+    hash: 'earnshaw',
+    selector: '[aria-label="Force curve with levitator position"]',
+    file: 'fig_earnshaw_force.png',
+    wait: 1500,
+  },
+  { hash: 'feedback1d', selector: '.hero-canvas', file: 'fig_feedback1d_globe.png', wait: 3500 },
+  { hash: 'feedback1d', selector: '.eigen-panel', file: 'fig_feedback1d_eigs.png', wait: 800 },
+  { hash: 'feedback2d', selector: '.hero-canvas', file: 'fig_feedback2d_topview.png', wait: 3500 },
+  { hash: 'feedback2d', selector: '.live-plots', file: 'fig_feedback2d_traces.png', wait: 5000 },
+  { hash: 'feedback2d', selector: '.eigen-panel', file: 'fig_feedback2d_eigs.png', wait: 800 },
+  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_stable"]', file: 'fig_gyro_stable.png', wait: 7000 },
+  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_potential"]', file: 'fig_gyro_potential.png', wait: 1200 },
+  { hash: 'gyroscopic', selector: '[data-figure="fig_gyro_theta_trace"]', file: 'fig_gyro_theta_trace.png', wait: 800 },
+  { hash: 'dynamical', selector: '.hero-canvas', file: 'fig_rotor_trap.png', wait: 4500 },
+  {
+    hash: 'dynamical',
+    selector: '[aria-label="Floater potential energy"]',
+    file: 'fig_rotor_potential.png',
+    wait: 800,
+  },
 ];
 
 function runPreview() {

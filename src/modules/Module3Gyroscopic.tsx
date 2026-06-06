@@ -8,14 +8,11 @@ import { StabilityBadge } from '../components/StabilityBadge';
 import { setupCanvas } from '../components/viz/drawHelpers';
 import { drawLinePlot, useSimLoop } from '../hooks/useSimLoop';
 import {
-  type GyroscopicParams,
-  type GyroscopicState,
   classifyGyroscopic,
   computeDiagnostics,
   criticalNutationAngle,
   gyroscopicPreset,
   initGyroscopicState,
-  logStartupDiagnostics,
   nudgeGyroscopic,
   omegaMax,
   omegaMin,
@@ -25,16 +22,27 @@ import {
   stepGyroscopic,
 } from '../physics/gyroscopic';
 import { exportRendererPng } from '../utils/exportFigure';
-import { PHYSICS_DT } from '../physics/integrators';
+import { PHYSICS_DT, clamp } from '../physics/integrators';
+import { checkModule3 } from '../physics/startupCheck';
 import type { StabilityStatus } from '../types';
 
 const THETA_HISTORY_LEN = 600;
 
+function initialGyroBundle() {
+  const p = gyroscopicPreset();
+  return { params: p, state: initGyroscopicState(p) };
+}
+
 export function Module3Gyroscopic() {
-  const [params, setParams] = useState<GyroscopicParams>(() => gyroscopicPreset());
-  const [state, setState] = useState<GyroscopicState>(() => initGyroscopicState(gyroscopicPreset()));
+  const [bundle] = useState(initialGyroBundle);
+  const [params, setParams] = useState(bundle.params);
+  const [state, setState] = useState(bundle.state);
   const [status, setStatus] = useState<StabilityStatus>('LEVITATING');
   const [running, setRunning] = useState(true);
+  const stateRef = useRef(state);
+  const paramsRef = useRef(params);
+  paramsRef.current = params;
+  stateRef.current = state;
   const containerRef = useRef<HTMLDivElement>(null);
   const potZRef = useRef<HTMLCanvasElement>(null);
   const potRRef = useRef<HTMLCanvasElement>(null);
@@ -48,8 +56,6 @@ export function Module3Gyroscopic() {
     renderer: THREE.WebGLRenderer;
     camera: THREE.PerspectiveCamera;
   } | null>(null);
-  const paramsRef = useRef(params);
-  paramsRef.current = params;
 
   const wMin = omegaMin(params);
   const wMax = omegaMax(params);
@@ -57,7 +63,7 @@ export function Module3Gyroscopic() {
   const diag = useMemo(() => computeDiagnostics(params, state.omega), [params, state.omega]);
 
   useEffect(() => {
-    logStartupDiagnostics(params, params.spinRate);
+    checkModule3();
   }, []);
   const thetaDeg = (state.theta * 180) / Math.PI;
   const thetaCDeg = (thetaC * 180) / Math.PI;
@@ -66,21 +72,19 @@ export function Module3Gyroscopic() {
   useSimLoop({
     running: running && !state.crashed,
     dt: PHYSICS_DT,
-    onStep: useCallback(
-      (dt) => {
-        setState((s) => {
-          const next = stepGyroscopic(s, params, dt);
-          setStatus(classifyGyroscopic(next, params));
-          if (next.crashed) setRunning(false);
-          const tc = criticalNutationAngle(next.omega, params);
-          const hist = thetaHistoryRef.current;
-          hist.push({ t: next.time, theta: (next.theta * 180) / Math.PI, thetaC: (tc * 180) / Math.PI });
-          if (hist.length > THETA_HISTORY_LEN) hist.shift();
-          return next;
-        });
-      },
-      [params],
-    ),
+    onStep: useCallback((dt) => {
+      stateRef.current = stepGyroscopic(stateRef.current, paramsRef.current, dt);
+    }, []),
+    onFrame: useCallback(() => {
+      const next = stateRef.current;
+      setState(next);
+      setStatus(classifyGyroscopic(next, paramsRef.current));
+      if (next.crashed) setRunning(false);
+      const tc = criticalNutationAngle(next.omega, paramsRef.current);
+      const hist = thetaHistoryRef.current;
+      hist.push({ t: next.time, theta: (next.theta * 180) / Math.PI, thetaC: (tc * 180) / Math.PI });
+      if (hist.length > THETA_HISTORY_LEN) hist.shift();
+    }, []),
   });
 
   useEffect(() => {
@@ -222,7 +226,11 @@ export function Module3Gyroscopic() {
     const top = topRef.current;
     if (!top) return;
 
-    top.position.set(state.x, state.z, state.y);
+    top.position.set(
+      clamp(state.x, -0.055, 0.055),
+      clamp(state.z, 0.008, 0.09),
+      clamp(state.y, -0.055, 0.055),
+    );
     const precession = top.children[0] as THREE.Group;
     const nutation = precession.children[0] as THREE.Group;
     const spin = nutation.children[0] as THREE.Group;
@@ -330,22 +338,28 @@ export function Module3Gyroscopic() {
 
   const reset = () => {
     thetaHistoryRef.current = [];
+    const s = initGyroscopicState(paramsRef.current);
+    stateRef.current = s;
     setRunning(true);
-    setState(initGyroscopicState(params));
+    setState(s);
     setStatus('LEVITATING');
   };
 
   const preset = () => {
     const p = gyroscopicPreset();
+    const s = initGyroscopicState(p);
     setParams(p);
     thetaHistoryRef.current = [];
+    stateRef.current = s;
     setRunning(true);
-    setState(initGyroscopicState(p));
+    setState(s);
     setStatus('LEVITATING');
   };
 
   const nudge = () => {
-    setState((s) => nudgeGyroscopic(s, params));
+    const nudged = nudgeGyroscopic(stateRef.current, paramsRef.current);
+    stateRef.current = nudged;
+    setState(nudged);
   };
 
   const spinPct = Math.max(0, Math.min(100, ((state.omega - wMin) / (wMax - wMin)) * 100));

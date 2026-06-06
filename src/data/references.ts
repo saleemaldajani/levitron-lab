@@ -2,6 +2,8 @@ export interface Reference {
   id: number;
   text: string;
   url: string;
+  /** Short label for the hyperlink (defaults to the URL). */
+  linkLabel?: string;
 }
 
 export const REFERENCES: Reference[] = [
@@ -60,12 +62,14 @@ export const REFERENCES: Reference[] = [
     text:
       'Aldajani, S. & Alowayed, "Understanding the Levitron Through the Analysis of a Symmetric Spinning Top in a Gravitational Field," MIT 8.223 Classical Mechanics III project report (author\'s prior work; physics basis for the gyroscopic module).',
     url: 'http://goo.gl/c5u3lk',
+    linkLabel: '8.223 project PDF',
   },
   {
     id: 11,
     text:
       'Aldajani, S., demonstration video of the symmetric-top Levitron analysis and interactive simulations (author).',
     url: 'https://www.youtube.com/watch?v=1LHwq_g06fE',
+    linkLabel: 'author video',
   },
 ];
 

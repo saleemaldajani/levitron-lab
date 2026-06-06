@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "start": "serve dist -s -l tcp://0.0.0.0:${PORT:-3000}",
     "figures": "PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers node scripts/capture-figures.mjs"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "katex": "^0.17.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "serve": "^14.2.4",
     "three": "^0.184.0"
   },
   "devDependencies": {

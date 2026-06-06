@@ -361,6 +361,12 @@ function derivatives(_t: number, s: number[], p: GyroscopicParams): number[] {
   ];
 }
 
+/** Net translational acceleration (m/s²) at current state. */
+export function netAccelerationGyro(state: GyroscopicState, p: GyroscopicParams): [number, number, number] {
+  const d = derivatives(state.time, stateToVec(state), p);
+  return [d[3], d[4], d[5]];
+}
+
 function stateToVec(s: GyroscopicState): number[] {
   return [
     s.x, s.y, s.z, s.vx, s.vy, s.vz,
@@ -412,10 +418,10 @@ export function stepGyroscopic(
 
   if (
     !isFiniteState(nextVec) ||
-    isOutOfBounds3D(next.x, next.y, next.z, 0.08, 0.1) ||
+    isOutOfBounds3D(next.x, next.y, next.z, 0.08, 0.12) ||
     next.z < 0.003 ||
-    next.theta > bounds.thetaMax * 1.35 ||
-    next.theta < THETA_EPS * 0.5
+    next.theta > bounds.thetaMax * 1.45 ||
+    next.theta < THETA_EPS * 0.4
   ) {
     return { ...next, crashed: true };
   }
@@ -448,13 +454,18 @@ export function nudgeGyroscopic(state: GyroscopicState, _p: GyroscopicParams): G
 }
 
 export function gyroscopicPreset(): GyroscopicParams {
-  return {
+  const base = {
     ...DEFAULT_GYROSCOPIC,
-    spinRate: defaultOmega(DEFAULT_GYROSCOPIC),
-    nutationAngle: 0.05,
     temperature: 22,
-    respinDrive: true,
     lateralOffset: 0,
+  };
+  const omega = defaultOmega(base);
+  const pPsi = momentIs(base) * omega * 2 * Math.PI;
+  const thetaStable = findStableTheta(pPsi, base);
+  return {
+    ...base,
+    spinRate: omega,
+    nutationAngle: thetaStable,
   };
 }
 

@@ -84,7 +84,8 @@ function computePID(
   integral: number,
   p: Feedback1DParams,
 ): { I: number; newIntegral: number; saturated: boolean } {
-  const raw = p.kp * err + p.ki * integral + p.kd * errDot;
+  const I_ff = (p.mass * G) / (p.baseStrength * tempFactor(p.temperature));
+  const raw = I_ff + p.kp * err + p.ki * integral + p.kd * errDot;
   const I = clamp(raw, -p.maxCurrent, p.maxCurrent);
   const saturated = Math.abs(raw - I) > 1e-9;
   let newIntegral = integral;
@@ -175,7 +176,7 @@ export function feedback1DPreset(): Feedback1DParams {
 
 export function initFeedback1DState(p: Feedback1DParams): Feedback1DState {
   const z0 = effectiveSetpoint(p);
-  const I0 = p.mass * G / (p.baseStrength * tempFactor(p.temperature));
+  const I0 = (p.mass * G) / (p.baseStrength * tempFactor(p.temperature));
   return {
     z: z0,
     vz: 0,
@@ -186,6 +187,12 @@ export function initFeedback1DState(p: Feedback1DParams): Feedback1DState {
     time: 0,
     crashed: false,
   };
+}
+
+/** Net vertical acceleration at current state (m/s²). */
+export function netAcceleration1D(state: Feedback1DState, p: Feedback1DParams): number {
+  const F = coilForce(state.coilCurrent, p) + passiveForceZ(state.z, p) - p.mass * G;
+  return F / p.mass;
 }
 
 export function getEigenParams1D(p: Feedback1DParams): Feedback1DEigenParams {

@@ -2,6 +2,16 @@
 
 Interactive, browser-based physics simulations of magnetic levitation — a set of *scientific toys* that teach how different kinds of levitron work. Each module foregrounds a live, animated hovering object you can perturb with sliders, alongside potential-energy curves, stability gauges, and equations.
 
+## ▶ Try it now (live demo)
+
+**Want to play with it right away?** Open the hosted app — no install, no signup, works in any modern browser:
+
+### **[https://levitron-lab-production.up.railway.app/](https://levitron-lab-production.up.railway.app/)**
+
+Pick a module from the sidebar, move the sliders, and watch the levitator respond in real time.
+
+---
+
 The modules climb a dimensionality ladder organized around the three ways physical devices escape **Earnshaw's theorem**:
 
 | Module | Device | Escape route | Unstable directions |
@@ -46,6 +56,8 @@ npm run figures
 See [paper/README.md](paper/README.md) and Appendix A of `paper/levitron_lab_ajp.tex` for the same instructions.
 
 ## Deploy on Railway
+
+**Live instance:** [levitron-lab-production.up.railway.app](https://levitron-lab-production.up.railway.app/)
 
 The repo includes `railway.toml`, `nixpacks.toml`, and an `npm start` script for a public static deployment.
 

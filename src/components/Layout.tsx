@@ -22,7 +22,12 @@ export function Layout({ currentPage, onNavigate, children }: LayoutProps) {
           <p className="site-credit">
             Developed by {DEVELOPER_NAME}
             <br />
-            <a href={LAB_PAPER_URL} title="Paper link — placeholder until publication">
+            <a
+              href={LAB_PAPER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Draft manuscript on Overleaf"
+            >
               {LAB_PAPER_LABEL}
             </a>
           </p>
